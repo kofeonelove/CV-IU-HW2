@@ -619,22 +619,30 @@ def frames_from(source):
         cap.release()
 
 
-def run_video(source, method="auto", seconds=10.0, show=True, save=None, max_frames=None, **kw):
+def run_video(source, method="auto", seconds=10.0, show=True, save=None, max_frames=None, save_long_side=960, **kw):
     """Видеорежим: лист ищется в каждом кадре. Возвращает числа: кадров, средний FPS всего цикла, доля кадров с листом, мс на detect."""
     n = found = 0
     ms, writer = [], None
+    frame_size = saved_size = None
     t_start = time.perf_counter()
     for frame in frames_from(source):
         quad, info = detect(frame, method, **kw)
         n += 1; found += quad is not None; ms.append(info["ms"])
         fps = n / max(time.perf_counter() - t_start, 1e-6)
+        if frame_size is None:
+            frame_size = [int(frame.shape[1]), int(frame.shape[0])]
         if show or save:
             view = draw_quad(frame, quad, label="%s  %.1f FPS  %.0f ms" % (info["path"] or "net lista", fps, info["ms"]))
             if save:
+                # На камере 1080p сырой ролик легко перевалит за 10 МБ: пишем уменьшенный.
+                s = min(1.0, float(save_long_side) / max(view.shape[:2]))
+                if s < 1.0:
+                    view = cv2.resize(view, (int(round(view.shape[1] * s)), int(round(view.shape[0] * s))), interpolation=cv2.INTER_AREA)
                 if writer is None:
                     os.makedirs(os.path.dirname(os.path.abspath(save)), exist_ok=True)
-                    writer = cv2.VideoWriter(save, cv2.VideoWriter_fourcc(*"mp4v"), 20.0, (frame.shape[1], frame.shape[0]))
+                    writer = cv2.VideoWriter(save, cv2.VideoWriter_fourcc(*"mp4v"), 20.0, (view.shape[1], view.shape[0]))
                 writer.write(view)
+                saved_size = [int(view.shape[1]), int(view.shape[0])]
             if show:
                 cv2.imshow("docscan: q - vyhod", view)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -647,7 +655,8 @@ def run_video(source, method="auto", seconds=10.0, show=True, save=None, max_fra
     if show:
         cv2.destroyAllWindows()
     return {"frames": n, "seconds": round(elapsed, 2), "fps": round(n / elapsed, 1) if elapsed > 0 and n else 0.0,
-            "found_pct": round(100.0 * found / n, 1) if n else 0.0, "detect_ms_median": round(float(np.median(ms)), 1) if ms else None}
+            "found_pct": round(100.0 * found / n, 1) if n else 0.0, "detect_ms_median": round(float(np.median(ms)), 1) if ms else None,
+            "frame_size": frame_size, "saved_size": saved_size}
 
 
 # --------------------------------------------------------------------- CLI ---
@@ -788,7 +797,7 @@ def cmd_eval(a):
 
 
 def cmd_video(a):
-    stats = run_video(a.source, a.method, a.seconds, not a.no_window, a.save, **_detect_kw(a))
+    stats = run_video(a.source, a.method, a.seconds, not a.no_window, a.save, save_long_side=a.save_long_side, **_detect_kw(a))
     _log(command="video", source=a.source, method=a.method, **stats)
 
 
@@ -838,7 +847,7 @@ def build_parser():
 
     s = sub.add_parser("video", help="поиск листа в видео"); common(s); s.add_argument("--source", default="0", help="номер камеры или путь к видеофайлу")
     s.add_argument("--method", choices=("contour", "hough", "auto"), default="auto"); s.add_argument("--seconds", type=float, default=10.0)
-    s.add_argument("--no-window", action="store_true", help="без окна — только счёт (для видеофайла и CI)"); s.add_argument("--save", help="записать видео с разметкой, .mp4"); s.set_defaults(fn=cmd_video)
+    s.add_argument("--no-window", action="store_true", help="без окна — только счёт (для видеофайла и CI)"); s.add_argument("--save", help="записать видео с разметкой, .mp4"); s.add_argument("--save-long-side", type=int, default=960, help="длинная сторона сохраняемого ролика, px"); s.set_defaults(fn=cmd_video)
     return p
 
 
