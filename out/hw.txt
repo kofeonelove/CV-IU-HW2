@@ -1,0 +1,5 @@
+﻿CPU: 12th Gen Intel(R) Core(TM) i5-12500H
+Logical processors: 16
+OpenCV: 4.14.0
+Dataset: 18 frames, 15 sheet / 3 negative
+Camera video: not shot yet (pending)
