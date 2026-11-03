@@ -76,6 +76,13 @@
 | 960 px, `--canny 50,150` | 1 · 0.122 · 3/3 · 52 | 1 · 0.285 · 2/3 · 757 | 1 · 0.286 · 2/3 · 617 |
 | 640 px, `--close 0` | 0 · 0.059 · 3/3 · 29 | 0 · 0.000 · 3/3 · 231 | 0 · 0.059 · 2/3 · 213 |
 
+Устойчивость RANSAC (`--seeds 20`, 640 px, `--canny 50,150`, `out/eval_seeds20.csv`): путь `hough`
+даёт IoU ≥ 0.9 только на `05.jpg` — **20 успехов из 20**. На `01.jpg` он стабильно держится на 0.881
+(0/20), на `06` — 0.784, `13` — 0.601, `14` — 0.826 (тоже 0/20): геометрия находится, но точности
+до порога 0.9 не хватает. Негативные `16` и `17` отклонены всеми 20 зёрнами (20/20), а `18` —
+наоборот, всеми 20 зёрнами ошибочно принят за лист (0/20). Разброс по зёрнам мал: RANSAC
+на моих кадрах либо уверенно находит одну и ту же прямую, либо так же уверенно промахивается.
+
 Сверка с `sample_data/README.md` (кадры курса) при `--long-side 960 --canny 50,150`
 (`out/sample_eval_960.csv`): `contour` — 3/4, средний IoU 0.745; `hough` — 3/4, 0.877;
 `auto` — **4/4, 0.994**; `nosheet.jpg` отклонён всеми режимами. Это ровно таблица §4 README курса,
@@ -207,6 +214,7 @@ python docscan.py eval data --ann data/corners.json --seeds 3 --csv out/eval_640
 python docscan.py eval data --ann data/corners.json --seeds 3 --canny 50,150 --csv out/eval_50_150.csv
 python docscan.py eval data --ann data/corners.json --seeds 3 --long-side 960 --canny 50,150 --csv out/eval_960.csv
 python docscan.py eval data --ann data/corners.json --seeds 3 --close 0 --csv out/eval_close0.csv
+python docscan.py eval data --ann data/corners.json --seeds 20 --canny 50,150 --csv out/eval_seeds20.csv
 python docscan.py eval sample_data --ann sample_data/corners.json --seeds 1 --long-side 960 --canny 50,150 --csv out/sample_eval_960.csv
 python docscan.py scan data/01.jpg --corners 150,100,1230,90,1265,1815,150,1820 -o out/01_scan.jpg --bw out/01_bw.png
 python docscan.py scan data/05.jpg --corners 135,125,1295,135,1285,1715,130,1715 -o out/05_scan.jpg --bw out/05_bw.png
